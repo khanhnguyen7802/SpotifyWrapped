@@ -1,11 +1,11 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, request, redirect, jsonify, session
+from flask import Flask, request, redirect, session, render_template_string
 import secrets
 import urllib
 import requests
 import base64
-from datetime import datetime
+import datetime
 
 load_dotenv()  
 
@@ -75,73 +75,50 @@ def callback():
   
   # if success
   if 'code' in request.args:
-    req_body = {
-      "code": request.args.get("code"),
-      "grant_type": "authorization_code",
-      "redirect_uri": redirect_uri,
-    }
-    # print(req_body)
-
-    # Encode client_id and client_secret in base64
-    b64_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    headers = {
-      "Authorization": f"Basic {b64_auth}",
-      "Content-Type": "application/x-www-form-urlencoded",
-    }
-
-    # Exchange code for tokens by sending POST request 
-    response = requests.post(
-      token_url,
-      data = req_body,
-      headers = headers
-    )
-
-    token_info = response.json()
-    print("token info:",token_info)
-    session["access_token"] = token_info["access_token"]
-    session["refresh_token"] = token_info["refresh_token"]
-    session["expires_at"] = datetime.now().timestamp() + token_info["expires_in"] # access token expires in 3600s
+    # print(f"Your authorization code is: {request.args.get('code')}")
+    
+    session['auth_code'] = request.args['code']
+    return redirect('/auth_success')
+ 
 
 
-  return redirect('/playlists')
+@app.route('/auth_success')
+def auth_success():
+    auth_code = session.get('auth_code')
+
+    session.pop("auth_code", None)
 
 
-@app.route('/playlists')
-def get_playlists():
-  if 'access_token' not in session: # check if access_token is still valid
-    return redirect('/login') # otherwise, re-login
-   
-  if datetime.now().timestamp() > session["expires_at"]: # the token is expired
-    return redirect('/refresh_token') # redirect to refresh the token
-   
-  # get user's playlists by including the following header 
-  headers = {
-    "Authorization": f"Bearer {session['access_token']}"
-  }
-   
-  response = requests.get(f"{api_url_base}/me/playlists", headers=headers) # current user's playlists
-  playlists = response.json()
-
-  return jsonify(playlists)
+    return f"<h1>Authorization successful!</h1><p>Your code is: {auth_code}</p>"
 
 
-@app.route('/refresh_token')
-def refresh_token():
+
+@app.route('/refresh_token_form')
+def refresh_token_form():
   """
-  Refresh the access token using the refresh token.
-  Send a POST request to the /api/token endpoint.
-
-  :return:
-    If success, returns 200 OK and new token_info (contains access_token, token_type, expires_in, scope).
-    If failure, returns error message.
+  A form for the user to input the refresh token.
   """
-  if 'refresh_token' not in session: # refresh_token is missing, login to retrieve it
-    return redirect('/login')
   
-  if datetime.now().timestamp() > session["expires_at"]: # refresh_token is expired
+  # simply send the form (containing token) to /resfresh_token/submit
+  form_html = """
+    <h2>Enter your refresh token</h2>
+    <form action="/refresh_token/submit" method="post"> 
+        <input type="text" name="input_refresh_token" placeholder="Enter the refresh token" required>
+        <button type="submit">Submit</button>
+    </form>
+    """
+  return render_template_string(form_html)
+
+@app.route('/refresh_token/submit', methods=['POST'])
+def refresh_token_submit():
+    """
+    Submit the form to refresh the access token.
+    Send a POST request to the /api/token endpoint.
+    """
+    input_refresh_token = request.form.get("input_refresh_token")
     req_body = {
       "grant_type": "refresh_token",
-      "refresh_token": session["refresh_token"]
+      "refresh_token": input_refresh_token
     }
 
     # Encode client_id and client_secret in base64
@@ -158,12 +135,14 @@ def refresh_token():
     )
 
     new_token_info = response.json()
-    session.update({
-      "access_token": new_token_info["access_token"],
-      "expires_at": datetime.datetime.now().timestamp() + new_token_info["expires_in"]
-    })
+    print("new token info:",new_token_info)
 
-  return redirect('/playlists')
+    return f"""<h1>Refresh successful!</h1>
+            <p>Your new access token is: {new_token_info.get('access_token')}</p>
+            <p>Your new refresh token is: {new_token_info.get('refresh_token')}</p>
+            <p>Token expires at: {datetime.datetime.now() + datetime.timedelta(seconds=new_token_info.get('expires_in'))}</p>
+           """
+
 
 
 if __name__ == '__main__':
