@@ -50,4 +50,7 @@ A data pipline that is scheduled to get data from your Spotify, extract the data
 1. Create an app in [Dashboard](https://developer.spotify.com/dashboard).
 2. Create a resource group (for easy management), then create the resources inside this group. 
 3. Create key vault for storing client_secret
-3. 
+
+(tbd)
+
+> For detailed configuration, refer to [configuration.md](./configuration.md).
