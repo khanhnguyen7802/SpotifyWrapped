@@ -1,30 +1,40 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, redirect, jsonify, session
-import secrets
-import urllib
 import requests
-import base64
 from datetime import datetime
+from SpotifyAuth import SpotifyAuth
 
-load_dotenv()  
+load_dotenv()
 
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
-flask_secret_key = os.getenv("FLASK_SECRET_KEY")
 auth_url_base = os.getenv("AUTH_URL")
 api_url_base = os.getenv("API_URL")
 token_url = os.getenv("TOKEN_URL")
 redirect_uri = os.getenv("REDIRECT_URI")
-
+flask_secret_key = os.getenv("FLASK_SECRET_KEY")
 
 app = Flask(__name__)
 app.secret_key = flask_secret_key  # for session management
 
+spotify_auth = SpotifyAuth(client_id=client_id, client_secret=client_secret)
+
 
 @app.route('/')
 def index():
-    return "Welcome to the Spotify API Integration!"
+  if spotify_auth.access_token is not None:
+    return '''
+        <h1>Welcome to the Spotify API Integration!</h1>
+        <a href="/playlists">Playlists</a>
+        <a href="/recentlyPlayed">Recently Played</a>
+    '''
+  
+
+  return '''
+      <h1>Welcome to the Spotify API Integration!</h1>
+      <a href="/login">Click here to login</a>
+  '''
 
 @app.route('/login')
 def request_authorization():
@@ -36,24 +46,8 @@ def request_authorization():
       If success, user is redirected back to the redirect_uri (contains 2 params: code and state).
       If failure, the response string contains 2 params: error and state.
     """
-    
-    scope = 'user-library-read user-read-recently-played user-top-read playlist-read-private'
-    state = secrets.token_urlsafe(16)
 
-    params = {
-      'client_id': client_id,
-      'response_type': 'code',
-      'redirect_uri': redirect_uri,
-      'scope': scope,
-      'state': state,
-      'show_dialog': 'true'
-    }
-
-    # Build the authorization URL
-    auth_url = f"{auth_url_base}?{urllib.parse.urlencode(params)}"
-
-    print(f"Authorization URL: {auth_url}")
-
+    auth_url = spotify_auth.request_authorization() # returns authorization URL
 
     return redirect(auth_url)
 
@@ -75,58 +69,22 @@ def callback():
   
   # if success
   if 'code' in request.args:
-    req_body = {
-      "code": request.args.get("code"),
-      "grant_type": "authorization_code",
-      "redirect_uri": redirect_uri,
-    }
-    # print(req_body)
+    token_info = spotify_auth.handle_callback(request.args.get('code'))
 
-    # Encode client_id and client_secret in base64
-    b64_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    headers = {
-      "Authorization": f"Basic {b64_auth}",
-      "Content-Type": "application/x-www-form-urlencoded",
-    }
-
-    # Exchange code for tokens by sending POST request 
-    response = requests.post(
-      token_url,
-      data = req_body,
-      headers = headers
-    )
-
-    token_info = response.json()
-    print("token info:",token_info)
-    session["access_token"] = token_info["access_token"]
-    session["refresh_token"] = token_info["refresh_token"]
-    session["expires_at"] = datetime.now().timestamp() + token_info["expires_in"] # access token expires in 3600s
-
-
-  return redirect('/playlists')
-
-
-@app.route('/playlists')
-def get_playlists():
-  if 'access_token' not in session: # check if access_token is still valid
-    return redirect('/login') # otherwise, re-login
+    if "error" in token_info: # failure
+      print(token_info)
+    else:
+      print("Token exchanged successfully")
+      session["logged_in"] = True
    
-  if datetime.now().timestamp() > session["expires_at"]: # the token is expired
-    return redirect('/refresh_token') # redirect to refresh the token
-   
-  # get user's playlists by including the following header 
-  headers = {
-    "Authorization": f"Bearer {session['access_token']}"
-  }
-   
-  response = requests.get(f"{api_url_base}/me/playlists", headers=headers) # current user's playlists
-  playlists = response.json()
 
-  return jsonify(playlists)
+    # print("Session expires at:", spotify_auth.access_token_expiration_time)
+
+  return redirect('/')
 
 
 @app.route('/refresh_token')
-def refresh_token():
+def refresh():
   """
   Refresh the access token using the refresh token.
   Send a POST request to the /api/token endpoint.
@@ -135,35 +93,57 @@ def refresh_token():
     If success, returns 200 OK and new token_info (contains access_token, token_type, expires_in, scope).
     If failure, returns error message.
   """
-  if 'refresh_token' not in session: # refresh_token is missing, login to retrieve it
+  if spotify_auth.refresh_token is None: # refresh_token is missing, login to retrieve it
     return redirect('/login')
-  
-  if datetime.now().timestamp() > session["expires_at"]: # refresh_token is expired
-    req_body = {
-      "grant_type": "refresh_token",
-      "refresh_token": session["refresh_token"]
-    }
 
-    # Encode client_id and client_secret in base64
-    b64_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    headers = {
-      "Authorization": f"Basic {b64_auth}",
-      "Content-Type": "application/x-www-form-urlencoded",
-    }
+  if datetime.now().timestamp() > spotify_auth.access_token_expiration_time: # refresh_token is expired
+    new_token_info = spotify_auth.refresh_new_token()
 
-    response = requests.post(
-      token_url,
-      data = req_body,
-      headers = headers
-    )
+    if "error" in new_token_info: # failure
+      print(new_token_info)
+    else:
+      print("Token refreshed successfully")
 
-    new_token_info = response.json()
-    session.update({
-      "access_token": new_token_info["access_token"],
-      "expires_at": datetime.datetime.now().timestamp() + new_token_info["expires_in"]
-    })
+  return redirect('/')
 
-  return redirect('/playlists')
+
+@app.route('/playlists')
+def get_playlists():
+  if spotify_auth.access_token is None: # check if access_token is still valid
+    return redirect('/login') # otherwise, re-login
+
+  if datetime.now().timestamp() > spotify_auth.access_token_expiration_time: # the token is expired
+    return redirect('/refresh_token') # redirect to refresh the token
+   
+  # get user's playlists by including the following header 
+  headers = {
+    "Authorization": f"Bearer {spotify_auth.access_token}"
+  }
+
+  response = requests.get(f"{api_url_base}/me/playlists", headers=headers)  # current user's playlists
+  playlists = response.json()
+
+  return jsonify(playlists)
+
+
+@app.route('/recentlyPlayed')
+def get_recently_played():
+  if spotify_auth.access_token is None: # check if access_token is still valid
+    return redirect('/login') # otherwise, re-login
+
+  if datetime.now().timestamp() > spotify_auth.access_token_expiration_time: # the token is expired
+    return redirect('/refresh_token') # redirect to refresh the token
+
+  # get user's recently played tracks by including the following header
+  headers = {
+    "Authorization": f"Bearer {spotify_auth.access_token}"
+  }
+
+  response = requests.get(f"{api_url_base}/me/player/recently-played?limit=50", headers=headers) # current user's recently played tracks
+  recently_played = response.json()
+
+  return jsonify(recently_played)
+
 
 
 if __name__ == '__main__':

@@ -54,3 +54,7 @@ A data pipline that is scheduled to get data from your Spotify, extract the data
 (tbd)
 
 > For detailed configuration, refer to [configuration.md](./configuration.md).
+
+Things to do right now:
+- write a script in Python that fetches Spotify API every hour (PAY ATTENTION TO REFRESH TOKEN)
+- later on, we will be using Azure Data Factory to automate that process. 
