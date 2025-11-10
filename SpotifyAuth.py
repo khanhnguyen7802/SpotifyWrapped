@@ -58,6 +58,13 @@ class SpotifyAuth:
     def access_token_expiration_time(self, value):
         self._access_token_expiration_time = value
 
+    @property
+    def refresh_token(self):
+        return getattr(self, "_refresh_token", None)
+    @refresh_token.setter
+    def refresh_token(self, value):
+        self._refresh_token = value
+
     def set_token_info(self, access_token, refresh_token, expires_in):
         self.access_token = access_token
         self.refresh_token = refresh_token

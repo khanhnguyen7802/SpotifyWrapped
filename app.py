@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, request, redirect, jsonify, session
+from flask import Flask, json, request, redirect, jsonify, session
 import requests
 from datetime import datetime
 from SpotifyAuth import SpotifyAuth
@@ -76,7 +76,9 @@ def callback():
     else:
       print("Token exchanged successfully")
       session["logged_in"] = True
-   
+
+      with open(f"{os.getcwd()}/auth_token.json", "w") as f:
+        json.dump(spotify_auth.__dict__, f, indent=2)
 
     # print("Session expires at:", spotify_auth.access_token_expiration_time)
 

@@ -56,5 +56,7 @@ A data pipline that is scheduled to get data from your Spotify, extract the data
 > For detailed configuration, refer to [configuration.md](./configuration.md).
 
 Things to do right now:
+- extract data from spotify api; the flow will be: spotify api data -> extract -> save to local .csv file (save theo từng ngày, cách 1 tiếng sẽ chạy 1 lần để save thông tin). Dimensional table sẽ có artist, album, track để đc referenced từ fact_playback (coi thêm trong draw.io). 
+> note that: the extracted raw data will be DIFFERENT from the table data (which will be ingested later on).
 - write a script in Python that fetches Spotify API every hour (PAY ATTENTION TO REFRESH TOKEN)
 - later on, we will be using Azure Data Factory to automate that process. 

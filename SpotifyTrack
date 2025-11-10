@@ -1,0 +1,78 @@
+from SpotifyAlbum import SpotifyAlbum
+
+class SpotifyTrack:
+    def __init__(self, album: SpotifyAlbum, artists, duration_ms, name:str, popularity):
+      self.album = album
+      self.artists = artists
+      self.duration_ms = duration_ms
+      self.name = name
+      self.popularity = popularity
+    
+    # getters and setters
+    @property
+    def album(self):
+        return getattr(self, "_album", None)
+
+    @album.setter
+    def album(self, value):
+        self._album = value
+
+    @property
+    def artists(self):
+        return getattr(self, "_artists", None)
+
+    @artists.setter
+    def artists(self, value):
+        self._artists = value
+
+    @property
+    def duration_ms(self):
+        return getattr(self, "_duration_ms", None)
+
+    @duration_ms.setter
+    def duration_ms(self, value):
+        self._duration_ms = value
+
+    @property
+    def name(self):
+        return getattr(self, "_name", None)
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
+    def popularity(self):
+        return getattr(self, "_popularity", None)
+
+    @popularity.setter
+    def popularity(self, value):
+        self._popularity = value
+
+    @client_id.setter
+    def client_id(self, value):
+        self._client_id = value
+
+    @property
+    def client_secret(self):
+        return getattr(self, "_client_secret", None)
+
+    @client_secret.setter
+    def client_secret(self, value):
+        self._client_secret = value
+
+    @property
+    def access_token(self):
+        return getattr(self, "_access_token", None)
+
+    @access_token.setter
+    def access_token(self, value):
+        self._access_token = value
+
+    @property
+    def access_token_expiration_time(self):
+        return getattr(self, "_access_token_expiration_time", None)
+
+    @access_token_expiration_time.setter
+    def access_token_expiration_time(self, value):
+        self._access_token_expiration_time = value
