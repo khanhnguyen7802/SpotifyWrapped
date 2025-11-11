@@ -20,4 +20,18 @@ class SpotifyArtist:
     def name(self, value):
       self._name = value
 
+    @property
+    def genres(self):
+      return getattr(self, "_genres", None)
+    @genres.setter
+    def genres(self, value):
+      self._genres = value
+      
+    def to_dict(self):
+      return {
+        "id": self.id,
+        "name": self.name,
+        "genres": self.genres
+      }
+
     

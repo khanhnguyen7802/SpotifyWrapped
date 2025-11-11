@@ -45,4 +45,13 @@ class SpotifyAlbum:
     @total_tracks.setter
     def total_tracks(self, value):
       self._total_tracks = value
+
+    def to_dict(self):
+      return {
+        "id": self.id,
+        "name": self.name,
+        "release_date": self.release_date,
+        "album_type": self.album_type,
+        "total_tracks": self.total_tracks
+      }
     

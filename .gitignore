@@ -1,1 +1,2 @@
 .env
+./auth/auth_token.json

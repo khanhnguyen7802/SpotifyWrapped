@@ -25,3 +25,10 @@ class SpotifyPlayer:
     @played_at.setter
     def played_at(self, value):
         self._played_at = value
+
+    def to_dict(self):
+      return {
+        "track_id": self.track_id,
+        "album_id": self.album_id,
+        "played_at": self.played_at
+      }
